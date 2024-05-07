@@ -7,6 +7,7 @@ import copy
 import os
 
 import torch
+from torch import Tensor
 from absl import app, flags
 from torchdyn.core import NeuralODE
 from torchvision import datasets, transforms
@@ -17,7 +18,7 @@ from torchcfm.models.unet.unet import UNetModelWrapper
 
 FLAGS = flags.FLAGS
 
-flags.DEFINE_string("output_dir", "./results/", help="output_directory")
+flags.DEFINE_string("output_dir_t_mod_center", "./results/", help="output_directory")
 # UNet
 flags.DEFINE_integer("num_channel", 128, help="base channel of UNet")
 
@@ -47,6 +48,29 @@ device = torch.device("cuda" if use_cuda else "cpu")
 
 def warmup_lr(step):
     return min(step, FLAGS.warmup) / FLAGS.warmup
+
+
+
+def get_x_and_grad(t: Tensor, x0: Tensor, x1: Tensor):
+    # returns the interpolated x value and (d/dt of this).
+    # t: the time value, 0 <= t <= 1, of shape (B, 1, 1, 1)
+    # x0: the noise, of shape (B, 3, 32, 32)
+    # x1: the image, of shape (B, 3, 32, 32)
+    device = x0.device
+    t_offset = 0.25 - (torch.arange(32, device=device) - 15.5).abs() / 31
+    t_offset = t_offset + t_offset.unsqueeze(-1)
+    # t_offset, of shape (32, 32), will be close to 0.5 in the center and -0.5 at the edges.
+    print(f"t_offset min,max = {t_offset.min(),t_offset.max()}")
+
+    # t_mod shape: (B, 1, 32, 32).  Values before the clamp() operation
+    # will be between -0.5 and 1.5.
+    t_mod = (t + t_offset).clamp_(min=0, max=1)
+    grad_mask = torch.logical_and(t_mod > 0.0, t_mod < 1.0).to(torch.float32)
+
+    xt = x1 * t_mod + x0 * (1 - t_mod)
+    ut = (x1 - x0) * grad_mask
+
+    return xt, ut
 
 
 def train(argv):
@@ -132,10 +156,12 @@ def train(argv):
             optim.zero_grad()
             x1 = next(datalooper).to(device)
             x0 = torch.randn_like(x1)
-
             t = torch.rand_like(get_time_shape(x1))
-            xt = x1 * t + x0 * (1 - t)
-            ut = x1 - x0
+
+
+            xt, ut = get_x_and_grad(t, x0, x1)
+            #xt = x1 * t + x0 * (1 - t)
+            #ut = x1 - x0
             ut = ut.reshape(FLAGS.batch_size, -1)
 
             #t, xt, ut = FM.sample_location_and_conditional_flow(x0, x1)

@@ -1,0 +1,4 @@
+
+at commit: 521bb663f931c84232e43bd87f4c8bad82bda76a
+ source /star-ly/env/py39/bin/activate
+python3 train_cifar10.py  --lr 2e-4 --ema_decay 0.9999 --batch_size 128 --total_steps 400001 --save_step 20000 &>> nohup/run1.txt &
