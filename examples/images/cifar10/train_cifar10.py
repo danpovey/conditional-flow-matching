@@ -13,16 +13,10 @@ from torchvision import datasets, transforms
 from tqdm import trange
 from utils_cifar import ema, generate_samples, infiniteloop
 
-from torchcfm.conditional_flow_matching import (
-    ConditionalFlowMatcher,
-    ExactOptimalTransportConditionalFlowMatcher,
-    TargetConditionalFlowMatcher,
-)
 from torchcfm.models.unet.unet import UNetModelWrapper
 
 FLAGS = flags.FLAGS
 
-flags.DEFINE_string("model", "otcfm", help="flow matching model type")
 flags.DEFINE_string("output_dir", "./results/", help="output_directory")
 # UNet
 flags.DEFINE_integer("num_channel", 128, help="base channel of UNet")
@@ -123,27 +117,28 @@ def train(argv):
     #            OT-CFM
     #################################
 
-    sigma = 0.0
-    if FLAGS.model == "otcfm":
-        FM = ExactOptimalTransportConditionalFlowMatcher(sigma=sigma)
-    elif FLAGS.model == "icfm":
-        FM = ConditionalFlowMatcher(sigma=sigma)
-    elif FLAGS.model == "fm":
-        FM = TargetConditionalFlowMatcher(sigma=sigma)
-    else:
-        raise NotImplementedError(
-            f"Unknown model {FLAGS.model}, must be one of ['otcfm', 'icfm', 'fm']"
-        )
 
-    savedir = FLAGS.output_dir + FLAGS.model + "/"
+    savedir = FLAGS.output_dir + "/"
     os.makedirs(savedir, exist_ok=True)
+
+
+    def get_time_shape(x):
+        for n in range(1, x.ndim):
+            x = x.narrow(n, 0, 1)
+        return x
 
     with trange(FLAGS.total_steps, dynamic_ncols=True) as pbar:
         for step in pbar:
             optim.zero_grad()
             x1 = next(datalooper).to(device)
             x0 = torch.randn_like(x1)
-            t, xt, ut = FM.sample_location_and_conditional_flow(x0, x1)
+
+            t = torch.rand_like(get_time_shape(x1))
+            xt = x1 * t + x0 * (1 - t)
+            ut = x1 - x0
+            ut = ut.reshape(FLAGS.batch_size, -1)
+
+            #t, xt, ut = FM.sample_location_and_conditional_flow(x0, x1)
             # import pdb; pdb.set_trace()
             vt = net_model(t, xt)
             loss = torch.mean((vt - ut) ** 2)
