@@ -5,14 +5,15 @@
 
 import copy
 import os
-
+import logging
 import torch
 from torch import Tensor
 from absl import app, flags
 from torchdyn.core import NeuralODE
 from torchvision import datasets, transforms
+from torch.utils.tensorboard import SummaryWriter
 from tqdm import trange
-from utils_cifar import ema, generate_samples, infiniteloop
+from utils_cifar import ema, generate_samples, infiniteloop, setup_logger
 
 from torchcfm.models.unet.unet import UNetModelWrapper
 
@@ -145,7 +146,8 @@ def train(argv):
 
     savedir = FLAGS.output_dir + "/"
     os.makedirs(savedir, exist_ok=True)
-
+    writer = SummaryWriter(f"{savedir}/tensorboard")
+    setup_logger(f"{savedir}/log")
 
     def get_time_shape(x):
         for n in range(1, x.ndim):
@@ -177,6 +179,10 @@ def train(argv):
 
             # sample and Saving the weights
             if FLAGS.save_step > 0 and step % FLAGS.save_step == 0:
+                message = f"step={step}, loss={loss.item()}"
+                logging.info(message)
+                writer.add_scalar('loss', loss, step)
+
                 generate_samples(net_model, FLAGS.parallel, savedir, step, net_="normal")
                 generate_samples(ema_model, FLAGS.parallel, savedir, step, net_="ema")
                 torch.save(
