@@ -18,7 +18,7 @@ from torchcfm.models.unet.unet import UNetModelWrapper
 
 FLAGS = flags.FLAGS
 
-flags.DEFINE_string("output_dir", "./results_t_mod_center/", help="output_directory")
+flags.DEFINE_string("output_dir", "./results_t_mod_center_1a/", help="output_directory")
 # UNet
 flags.DEFINE_integer("num_channel", 128, help="base channel of UNet")
 
@@ -60,11 +60,12 @@ def get_x_and_grad(t: Tensor, x0: Tensor, x1: Tensor):
     t_offset = 0.25 - (torch.arange(32, device=device) - 15.5).abs() / 31
     t_offset = t_offset + t_offset.unsqueeze(-1)
     # t_offset, of shape (32, 32), will be close to 0.5 in the center and -0.5 at the edges.
-    print(f"t_offset min,max = {t_offset.min(),t_offset.max()}")
 
     # t_mod shape: (B, 1, 32, 32).  Values before the clamp() operation
-    # will be between -0.5 and 1.5.
-    t_mod = (t + t_offset).clamp_(min=0, max=1)
+    # will be between -0.5 and 2.0.  At t == 1.0, no value of t_mod
+    # will be less than 1.0 before the clamp, i.e. the image is fully
+    # denoised.
+    t_mod = (t * 1.5 + t_offset).clamp_(min=0, max=1)
     grad_mask = torch.logical_and(t_mod > 0.0, t_mod < 1.0).to(torch.float32)
 
     xt = x1 * t_mod + x0 * (1 - t_mod)
