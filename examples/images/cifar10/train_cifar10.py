@@ -18,7 +18,7 @@ from torchcfm.models.unet.unet import UNetModelWrapper
 
 FLAGS = flags.FLAGS
 
-flags.DEFINE_string("output_dir_t_mod_center", "./results/", help="output_directory")
+flags.DEFINE_string("output_dir", "./results_t_mod_center/", help="output_directory")
 # UNet
 flags.DEFINE_integer("num_channel", 128, help="base channel of UNet")
 
