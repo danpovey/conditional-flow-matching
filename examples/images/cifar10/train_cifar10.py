@@ -77,15 +77,6 @@ def train(argv):
             ]
         ),
     )
-    dataloader = torch.utils.data.DataLoader(
-        dataset,
-        batch_size=FLAGS.batch_size,
-        shuffle=True,
-        num_workers=FLAGS.num_workers,
-        drop_last=True,
-    )
-
-    datalooper = infiniteloop(dataloader)
 
     # MODELS
     net_model = UNetModelWrapper(
@@ -100,6 +91,17 @@ def train(argv):
     ).to(
         device
     )  # new dropout + bs of 128
+
+
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=FLAGS.batch_size,
+        shuffle=True,
+        num_workers=FLAGS.num_workers,
+        drop_last=True,
+    )
+
+    datalooper = infiniteloop(dataloader)
 
     ema_model = copy.deepcopy(net_model)
     optim = torch.optim.Adam(net_model.parameters(), lr=FLAGS.lr)
@@ -142,6 +144,7 @@ def train(argv):
             x1 = next(datalooper).to(device)
             x0 = torch.randn_like(x1)
             t, xt, ut = FM.sample_location_and_conditional_flow(x0, x1)
+            # import pdb; pdb.set_trace()
             vt = net_model(t, xt)
             loss = torch.mean((vt - ut) ** 2)
             loss.backward()
