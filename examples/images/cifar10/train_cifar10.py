@@ -19,7 +19,7 @@ from torchcfm.models.unet.unet import UNetModelWrapper
 
 FLAGS = flags.FLAGS
 
-flags.DEFINE_string("output_dir", "./results_t_mod_center_1c/", help="output_directory")
+flags.DEFINE_string("output_dir", "./results_t_mod_center_1d/", help="output_directory")
 # UNet
 flags.DEFINE_integer("num_channel", 128, help="base channel of UNet")
 
@@ -58,12 +58,16 @@ def get_x_and_grad(t: Tensor, x0: Tensor, x1: Tensor):
     # x0: the noise, of shape (B, 3, 32, 32)
     # x1: the image, of shape (B, 3, 32, 32)
     device = x0.device
-    t_offset =  - (torch.arange(32, device=device) - 15.5).abs() / 31
-    t_offset = t_offset + t_offset.unsqueeze(-1)
-    # t_offset, of shape (32, 32), will be close to 0.0 in the center and -1.0 at the edges.
 
-    # t_mod shape: (B, 1, 32, 32).  Values before the clamp() operation
-    # will be between -0.5 and 2.0.  At t == 1.0, all t_mod values will be 1.0,
+    # t_offset, of shape (32,), ranges from 0 to 1;
+    # this will be 0 at index 0 (which is the top, I believe)
+    # and -1 at the last index.  I believe this means we denoise
+    # the image from the top to the bottom.
+    t_offset =  (- (torch.arange(32, device=device)).abs() / 31).unsqueeze(-1)
+
+
+    # t_mod shape: (B, 1, 1, 32).  Values before the clamp() operation
+    # will be between -1.0 and 2.0.  At t == 1.0, all t_mod values will be 1.0,
     # i.e. the image is fully
     # denoised; at t=0.0, all t_mod values are 0.0 it contains only noise.
     t_mod = (t * 2.0 + t_offset).clamp_(min=0, max=1)
@@ -177,12 +181,15 @@ def train(argv):
             sched.step()
             ema(net_model, ema_model, FLAGS.ema_decay)  # new
 
-            # sample and Saving the weights
-            if FLAGS.save_step > 0 and step % FLAGS.save_step == 0:
+
+            if step % 50 == 0:
                 message = f"step={step}, loss={loss.item()}"
                 logging.info(message)
                 writer.add_scalar('loss', loss, step)
 
+
+            # sample and Saving the weights
+            if FLAGS.save_step > 0 and step % FLAGS.save_step == 0:
                 generate_samples(net_model, FLAGS.parallel, savedir, step, net_="normal")
                 generate_samples(ema_model, FLAGS.parallel, savedir, step, net_="ema")
                 torch.save(
