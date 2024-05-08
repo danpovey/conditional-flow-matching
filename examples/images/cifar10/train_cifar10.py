@@ -63,7 +63,8 @@ def get_x_and_grad(t: Tensor, x0: Tensor, x1: Tensor):
     # this will be 0 at index 0 (which is the top, I believe)
     # and -1 at the last index.  I believe this means we denoise
     # the image from the top to the bottom.
-    t_offset =  (- (torch.arange(32, device=device)).abs() / 31).unsqueeze(-1)
+    # layout is NCHW, so t_offset is in the height axis.
+    t_offset =  (-torch.arange(32, device=device) / 31).unsqueeze(-1)
 
 
     # t_mod shape: (B, 1, 1, 32).  Values before the clamp() operation
