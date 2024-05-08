@@ -19,7 +19,7 @@ from torchcfm.models.unet.unet import UNetModelWrapper
 
 FLAGS = flags.FLAGS
 
-flags.DEFINE_string("output_dir", "./results_t_mod_center_1b/", help="output_directory")
+flags.DEFINE_string("output_dir", "./results_t_mod_center_1c/", help="output_directory")
 # UNet
 flags.DEFINE_integer("num_channel", 128, help="base channel of UNet")
 
@@ -70,7 +70,7 @@ def get_x_and_grad(t: Tensor, x0: Tensor, x1: Tensor):
     grad_mask = torch.logical_and(t_mod > 0.0, t_mod < 1.0).to(torch.float32)
 
     xt = x1 * t_mod + x0 * (1 - t_mod)
-    ut = (x1 - x0) * grad_mask
+    ut = (x1 - x0) * grad_mask * 2.0
 
     return xt, ut
 
