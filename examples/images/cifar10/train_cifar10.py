@@ -71,10 +71,10 @@ def get_xt_and_ut(t: Tensor, x1: Tensor) -> Tuple[Tensor, Tensor]:
     """
 
     # https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-
+    device = x1.device
     # First compute a random relative-warp amount.
     (B, _, K, _) = x1.shape
-    assert x.shape[-1] == K  # we're assuming image is square.  this is not really necessary
+    assert x1.shape[-1] == K  # we're assuming image is square.  this is not really necessary
     assert t.shape == (B, 1, 1, 1)
 
     x0 = torch.randn_like(x1)
@@ -88,10 +88,10 @@ def get_xt_and_ut(t: Tensor, x1: Tensor) -> Tuple[Tensor, Tensor]:
     warp = torch.randn(B, 2,
                        K - num_smooth_iters * (smooth_distance - 1),
                        K - num_smooth_iters * (smooth_distance - 1),
-                       device=x.device)
+                       device=device)
 
     # ... and convolve it with a square of ones.
-    weight = torch.ones(2, 1, smooth_distance, smooth_distance, device=x.device)
+    weight = torch.ones(2, 1, smooth_distance, smooth_distance, device=device)
 
     for _ in range(num_smooth_iters):
         warp = torch.nn.functional.conv2d(warp, weight, groups=2,
@@ -116,7 +116,7 @@ def get_xt_and_ut(t: Tensor, x1: Tensor) -> Tuple[Tensor, Tensor]:
     warp = warp * warp_amount
     warp = warp.permute(0, 2, 3, 1)
 
-    theta = torch.eye(3, device=x.device)[:2]
+    theta = torch.eye(3, device=device)[:2]
     theta = theta.unsqueeze(0)
     # this theta is a one-to-one affine map, saying "there is no shift or rotation"
     grid = torch.nn.functional.affine_grid(theta, (1, 1, K, K))
@@ -139,7 +139,7 @@ def get_xt_and_ut(t: Tensor, x1: Tensor) -> Tuple[Tensor, Tensor]:
         delta_t = torch.full_like(t, delta) if n == 1 else 0.0
         this_t = t + delta_t
         x1_warped_grid = grid + (1 - this_t) * warp
-        this_x1 = torch.nn.functional.grid_sample(x1, warped_grid,
+        this_x1 = torch.nn.functional.grid_sample(x1, x1_warped_grid,
                                                   mode='bilinear', padding_mode='reflection',
                                                   align_corners=False)
 
@@ -149,11 +149,11 @@ def get_xt_and_ut(t: Tensor, x1: Tensor) -> Tuple[Tensor, Tensor]:
         # gets smaller due to warping.  The idea is that x0 is random anyway, so we
         # don't really need to worry about the non-changing part of the warp.
         x0_warped_grid = grid - delta_t * warp
-        this_x0 = torch.nn.functional.grid_sample(x0, warped_grid,
+        this_x0 = torch.nn.functional.grid_sample(x0, x0_warped_grid,
                                                   mode='bilinear', padding_mode='reflection',
                                                   align_corners=False)
 
-        x = this_t * this_x0  + (1 - this_t) * this_x1
+        x = (1 - this_t) * this_x0  + this_t * this_x1
         x_vals.append(x)
 
     return x_vals[0], (x_vals[1] - x_vals[0]) / delta
