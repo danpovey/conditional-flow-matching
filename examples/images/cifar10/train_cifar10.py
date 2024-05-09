@@ -23,7 +23,7 @@ from torchcfm.models.unet.unet import UNetModelWrapper
 
 FLAGS = flags.FLAGS
 
-flags.DEFINE_string("output_dir", "./results_t_mod_center_1f/", help="output_directory")
+flags.DEFINE_string("output_dir", "./results_t_mod_center_1g/", help="output_directory")
 # UNet
 flags.DEFINE_integer("num_channel", 128, help="base channel of UNet")
 
@@ -107,7 +107,7 @@ def get_xt_and_ut(t: Tensor, x1: Tensor) -> Tuple[Tensor, Tensor]:
 
 
     # this warp amount is expressed as a faction of [half the image height].
-    warp_amount = 0.05
+    warp_amount = 0.1
 
     # The values given to grid_sample are normalized to between -1 and 1 corresponding
     # to the e.g. top & bottom of the image,
