@@ -133,9 +133,6 @@ def get_xt_and_ut(t: Tensor, x1: Tensor) -> Tuple[Tensor, Tensor]:
 
     x_vals = [ ]
     for n in [ 0, 1 ]:
-        if n == 1:
-            t = t + torch.full_like(t, delta)
-
         delta_t = torch.full_like(t, delta) if n == 1 else 0.0
         this_t = t + delta_t
         x1_warped_grid = grid + (1 - this_t) * warp
