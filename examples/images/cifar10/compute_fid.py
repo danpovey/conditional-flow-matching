@@ -100,7 +100,7 @@ def gen_1_img(unused_latent):
     global wrote_sample
     if not wrote_sample:
         wrote_sample = True
-        fn = exp_path + f"sample_step{FLAGS.step}.png"
+        fn = exp_path + f"/sample_step{FLAGS.step}.png"
         print(f"Saved sample to {fn}")
         save_image(traj[:64], fn, nrow=8)
 
