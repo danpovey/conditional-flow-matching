@@ -8,6 +8,7 @@ import sys
 
 import matplotlib.pyplot as plt
 import torch
+from torchvision.utils import save_image
 from absl import app, flags
 from cleanfid import fid
 from torchdiffeq import odeint
@@ -77,6 +78,7 @@ new_net.eval()
 if FLAGS.integration_method == "euler":
     node = NeuralODE(new_net, solver=FLAGS.integration_method)
 
+wrote_sample = False
 
 def gen_1_img(unused_latent):
     with torch.no_grad():
@@ -94,6 +96,14 @@ def gen_1_img(unused_latent):
             traj = odeint(
                 new_net, x, t_span, rtol=FLAGS.tol, atol=FLAGS.tol, method=FLAGS.integration_method
             )
+
+    global wrote_sample
+    if not wrote_sample:
+        wrote_sample = True
+        fn = exp_path + f"sample_step{FLAGS.step}.png"
+        print(f"Saved sample to {fn}")
+        save_image(traj[:64], fn, nrow=8)
+
     # traj = traj[-1, :]  # .view([-1, 3, 32, 32]).clip(-1, 1)
     img = (traj * 127.5 + 128).clip(0, 255).to(torch.uint8)  # .permute(1, 2, 0)
     return img
