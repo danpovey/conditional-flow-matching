@@ -20,14 +20,19 @@ FLAGS = flags.FLAGS
 flags.DEFINE_integer("num_channel", 128, help="base channel of UNet")
 
 # Training
-flags.DEFINE_string("input_dir", "./results", help="output_directory")
-flags.DEFINE_string("model", "otcfm", help="flow matching model type")
+flags.DEFINE_string("input_dir", "./results/", help="output_directory")
 flags.DEFINE_integer("integration_steps", 1000, help="number of inference steps")
-flags.DEFINE_string("integration_method", "dopri5", help="integration method to use")
-flags.DEFINE_integer("step", 400000, help="training steps")
+#flags.DEFINE_string("integration_method", "dopri5", help="integration method to use")
+# with dopri5 as integration method it failed like this:
+#    return forward_call(*input, **kwargs)
+# RuntimeError: The following operation failed in the TorchScript interpreter.
+# Traceback of TorchScript (most recent call last):
+# RuntimeError: Expected 4 elements in a list but found 5
+
+flags.DEFINE_string("integration_method", "euler", help="integration method to use")
+flags.DEFINE_integer("step", 180000, help="training steps")
 flags.DEFINE_integer("num_gen", 50000, help="number of samples to generate")
 flags.DEFINE_float("tol", 1e-5, help="Integrator tolerance (absolute and relative)")
-flags.DEFINE_string("exp", "fm", help="noise_scale")
 FLAGS(sys.argv)
 
 
@@ -49,7 +54,7 @@ new_net = UNetModelWrapper(
 
 # Load the model
 # PATH = f"{FLAGS.input_dir}/{FLAGS.model}/cifar10_weights_step_{FLAGS.step}.pt"
-PATH = f"{FLAGS.input_dir}/{FLAGS.exp}/cifar10_weights_step_{FLAGS.step}.pt"
+PATH = f"{FLAGS.input_dir}/cifar10_weights_step_{FLAGS.step}.pt"
 
 import os
 exp_path = os.path.dirname(PATH)
@@ -77,16 +82,11 @@ def gen_1_img(unused_latent):
     with torch.no_grad():
         B = 100
         x = torch.randn(B, 3, 32, 32).to(device)
-        if new_net.aux_in:
-            x = torch.randn(B, 3840).to(device) #* FLAGS.noise_scale
-        else:
-            x = torch.randn(B, 3072).to(device) # * FLAGS.noise_scale
         if FLAGS.integration_method == "euler":
             print("Use method: ", FLAGS.integration_method)
             t_span = torch.linspace(0, 1, FLAGS.integration_steps + 1).to(device)
             traj = node.trajectory(x, t_span=t_span)
-            traj = traj[-1, :B, :3072].reshape(-1, B, 3, 32, 32)
-            traj = traj.view([-1, 3, 32, 32]).clip(-1, 1)
+            traj = traj[-1].view([-1, 3, 32, 32]).clip(-1, 1)
             traj = traj / 2 + 0.5
         else:
             print("Use method: ", FLAGS.integration_method)
