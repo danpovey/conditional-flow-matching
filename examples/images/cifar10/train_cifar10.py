@@ -3,6 +3,8 @@
 # Authors: Kilian Fatras
 #          Alexander Tong
 
+#  ( source /star-ly/env/py39/bin/activate; export PYTHONPATH=$PYTHONPATH:/star-dan/conditional-flow-matching; python3 ./train_cifar10.py ) &
+
 import copy
 import os
 
@@ -20,7 +22,7 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string("output_dir", "./results/", help="output_directory")
 # UNet
 flags.DEFINE_integer("num_channel", 128, help="base channel of UNet")
-
+flags.DEFINE_integer("start_step", 0, help="beginning training step")
 # Training
 flags.DEFINE_float("lr", 2e-4, help="target learning rate")  # TRY 2e-4
 flags.DEFINE_float("grad_clip", 1.0, help="gradient norm clipping")
@@ -121,14 +123,24 @@ def train(argv):
     savedir = FLAGS.output_dir + "/"
     os.makedirs(savedir, exist_ok=True)
 
+    if FLAGS.start_step != 0:
+        checkpoint = torch.load(FLAGS.output_dir + f"/cifar10_weights_step_{FLAGS.start_step}.pt",
+                                map_location=device)
+        if FLAGS.start_step != checkpoint["step"]:
+            print(f"Warning: step mismatch {FLAGS.start_step} vs {checkpoint['step']}")
+        net_model.load_state_dict(checkpoint["net_model"])
+        ema_model.load_state_dict(checkpoint["ema_model"])
+        sched.load_state_dict(checkpoint["sched"])
+        optim.load_state_dict(checkpoint["optim"])
+
 
     def get_time_shape(x):
         for n in range(1, x.ndim):
             x = x.narrow(n, 0, 1)
         return x
 
-    with trange(FLAGS.total_steps, dynamic_ncols=True) as pbar:
-        for step in pbar:
+    if True:  # for indent
+        for step in range(FLAGS.start_step, FLAGS.total_steps):
             optim.zero_grad()
             x1 = next(datalooper).to(device)
             x0 = torch.randn_like(x1)
@@ -136,7 +148,6 @@ def train(argv):
             t = torch.rand_like(get_time_shape(x1))
             xt = x1 * t + x0 * (1 - t)
             ut = x1 - x0
-            ut = ut.reshape(FLAGS.batch_size, -1)
 
             #t, xt, ut = FM.sample_location_and_conditional_flow(x0, x1)
             # import pdb; pdb.set_trace()

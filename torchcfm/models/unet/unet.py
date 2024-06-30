@@ -609,7 +609,6 @@ class UNetModel(nn.Module):
             self.num_classes is not None
         ), "must specify y if and only if the model is class-conditional"
         while timesteps.dim() > 1:
-            print(timesteps.shape)
             timesteps = timesteps[:, 0]
         if timesteps.dim() == 0:
             timesteps = timesteps.repeat(x.shape[0])

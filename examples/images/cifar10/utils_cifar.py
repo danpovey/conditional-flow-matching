@@ -34,7 +34,7 @@ def generate_samples(model, parallel, savedir, step, net_="normal"):
     node_ = NeuralODE(model_, solver="euler", sensitivity="adjoint")
     with torch.no_grad():
         traj = node_.trajectory(
-            torch.randn(64, 3 * 32 * 32).to(device),
+            torch.randn(64, 3, 32, 32, generator=torch.Generator().manual_seed(110)).to(device),
             t_span=torch.linspace(0, 1, 100).to(device),
         )
         traj = traj[-1, :].view([-1, 3, 32, 32]).clip(-1, 1)
