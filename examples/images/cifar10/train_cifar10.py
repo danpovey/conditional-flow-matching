@@ -10,7 +10,6 @@ import os
 
 import torch
 from absl import app, flags
-from torchdyn.core import NeuralODE
 from torchvision import datasets, transforms
 from tqdm import trange
 from utils_cifar import ema, generate_samples, infiniteloop
@@ -35,12 +34,9 @@ flags.DEFINE_integer("num_workers", 4, help="workers of Dataloader")
 flags.DEFINE_float("ema_decay", 0.9999, help="ema decay rate")
 flags.DEFINE_bool("parallel", False, help="multi gpu training")
 
-# Evaluation
-flags.DEFINE_integer(
-    "save_step",
-    20000,
-    help="frequency of saving checkpoints, 0 to disable during training",
-)
+# saving model parameters
+flags.DEFINE_integer("save_step", 20000, help="frequency of saving checkpoints, 0 to disable during training",)
+
 
 
 use_cuda = torch.cuda.is_available()
@@ -160,9 +156,7 @@ def train(argv):
             ema(net_model, ema_model, FLAGS.ema_decay)  # new
 
             # sample and Saving the weights
-            if FLAGS.save_step > 0 and step % FLAGS.save_step == 0:
-                generate_samples(net_model, FLAGS.parallel, savedir, step, net_="normal")
-                generate_samples(ema_model, FLAGS.parallel, savedir, step, net_="ema")
+            if FLAGS.save_step > 0 and step > FLAGS.start_step and step % FLAGS.save_step == 0:
                 torch.save(
                     {
                         "net_model": net_model.state_dict(),
@@ -173,6 +167,10 @@ def train(argv):
                     },
                     savedir + f"cifar10_weights_step_{step}.pt",
                 )
+
+            if (step > 0 and step % 5000 == 0) or step == 500:
+                generate_samples(net_model, savedir, step, net_="normal")
+                generate_samples(ema_model, savedir, step, net_="ema")
 
 
 if __name__ == "__main__":
